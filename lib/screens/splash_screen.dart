@@ -48,7 +48,10 @@ Future<void> _checkAuthStatus() async {
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [const Color.fromARGB(255, 107, 139, 255), Color(0xFF6dd5ed)],
+            colors: [
+              const Color.fromARGB(255, 107, 139, 255),
+              Color.fromARGB(255, 139, 164, 255)
+            ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
