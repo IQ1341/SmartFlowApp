@@ -10,6 +10,7 @@ import '../screens/dashboard/dashboard_screen.dart';
 import '../screens/history/history_screen.dart';
 import '../screens/billing/billing_screen.dart';
 import '../screens/settings/settings_screen.dart';
+import '../screens/notifications/notifcations_screen.dart';
 
 class AppRoutes {
   static Map<String, WidgetBuilder> routes = {
@@ -21,5 +22,6 @@ class AppRoutes {
     '/billing': (context) => const BillingScreen(),
     '/settings': (context) => const SettingsScreen(),
     '/home': (context) => const CustomBottomNav(),
+    '/notifications': (context) => const NotificationScreen(),
   };
 }

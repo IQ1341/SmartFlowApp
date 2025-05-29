@@ -18,7 +18,7 @@ class CustomHeader extends StatelessWidget implements PreferredSizeWidget {
 
     return Container(
       padding: const EdgeInsets.only(top: 25, left: 16, right: 16, bottom: 12),
-      color: Color.fromARGB(255, 107, 139, 255),
+      color: const Color.fromARGB(255, 107, 139, 255),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -45,54 +45,56 @@ class CustomHeader extends StatelessWidget implements PreferredSizeWidget {
             ],
           ),
 
-          // Notifikasi
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              GestureDetector(
-                onTap: () {
-                  Navigator.pushNamed(context, '/notifications');
-                },
-                child: Container(
+          // Notifikasi dengan badge
+          GestureDetector(
+            onTap: () {
+              Navigator.pushNamed(context, '/notifications');
+              // Jika kamu tidak pakai named route, bisa ganti:
+              // Navigator.push(context, MaterialPageRoute(builder: (_) => NotificationScreen()));
+            },
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
                   width: 44,
                   height: 44,
                   decoration: const BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Colors.white24, // background lingkaran
+                    color: Colors.white24,
                   ),
                   child: const Icon(
                     Icons.notifications,
                     color: Colors.white,
-                    size: 26, // ukuran lonceng
+                    size: 26,
                   ),
                 ),
-              ),
-              if (notificationCount > 0)
-                Positioned(
-                  right: -2,
-                  top: -2,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: const BoxDecoration(
-                      color: Colors.red,
-                      shape: BoxShape.circle,
-                    ),
-                    constraints:
-                        const BoxConstraints(minWidth: 20, minHeight: 20),
-                    child: Center(
-                      child: Text(
-                        '$notificationCount',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
+                if (notificationCount > 0)
+                  Positioned(
+                    right: -2,
+                    top: -2,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                      constraints:
+                          const BoxConstraints(minWidth: 20, minHeight: 20),
+                      child: Center(
+                        child: Text(
+                          '$notificationCount',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-            ],
-          )
+              ],
+            ),
+          ),
         ],
       ),
     );

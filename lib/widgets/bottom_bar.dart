@@ -14,11 +14,10 @@ class _CustomBottomNavState extends State<CustomBottomNav> {
   int _currentIndex = 1; // Dashboard di tengah, index = 1
 
   final List<Widget> _screens = const [
-  HistoryScreen(),     // index 0 (kiri)
-  DashboardScreen(),   // index 1 (TENGAH - FAB)
-    SettingsScreen()
-];
-
+    HistoryScreen(), // index 0 (kiri)
+    DashboardScreen(), // index 1 (tengah - FAB)
+    SettingsScreen(), // index 2 (kanan)
+  ];
 
   void _onTap(int index) {
     setState(() {
@@ -27,19 +26,20 @@ class _CustomBottomNavState extends State<CustomBottomNav> {
   }
 
   void _onMiddleTap() {
-  _onTap(1); // harus index 1 → Dashboard
-}
-
+    _onTap(1); // Dashboard
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       extendBody: true,
+      resizeToAvoidBottomInset:
+          false, // <--- Fix FAB ikut naik saat keyboard muncul
       body: _screens[_currentIndex],
       floatingActionButton: FloatingActionButton(
         onPressed: _onMiddleTap,
-        backgroundColor: _currentIndex == 1 ? const Color.fromARGB(255, 107, 139, 255) : const Color.fromARGB(255, 107, 139, 255),
+        backgroundColor: const Color.fromARGB(255, 107, 139, 255),
         elevation: 8,
         shape: const CircleBorder(),
         child: Icon(
@@ -60,12 +60,19 @@ class _CustomBottomNavState extends State<CustomBottomNav> {
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _buildNavItem(
-                  Icons.history_outlined, Icons.history, "History", 0),
+                Icons.history_outlined,
+                Icons.history,
+                "History",
+                0,
+              ),
               const SizedBox(width: 48), // Spacer untuk FAB
               _buildNavItem(
-                  Icons.settings_outlined, Icons.settings, "Setting", 2),
+                Icons.settings_outlined,
+                Icons.settings,
+                "Setting",
+                2,
+              ),
             ],
-
           ),
         ),
       ),
@@ -83,14 +90,18 @@ class _CustomBottomNavState extends State<CustomBottomNav> {
         children: [
           Icon(
             isSelected ? activeIcon : icon,
-            color: isSelected ? const Color.fromARGB(255, 107, 139, 255) : Colors.grey,
+            color: isSelected
+                ? const Color.fromARGB(255, 107, 139, 255)
+                : Colors.grey,
           ),
           const SizedBox(height: 4),
           Text(
             label,
             style: TextStyle(
               fontSize: 12,
-              color: isSelected ? const Color.fromARGB(255, 107, 139, 255) : Colors.grey,
+              color: isSelected
+                  ? const Color.fromARGB(255, 107, 139, 255)
+                  : Colors.grey,
               fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
             ),
           ),
