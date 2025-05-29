@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-class CustomHeader extends StatelessWidget {
+class CustomHeader extends StatelessWidget implements PreferredSizeWidget {
   final String deviceName;
   final int notificationCount;
 
@@ -13,10 +13,12 @@ class CustomHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final String today = DateFormat("d MMMM yyyy", 'id_ID').format(DateTime.now());
+    final String today =
+        DateFormat("d MMMM yyyy", 'id_ID').format(DateTime.now());
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16.0),
+    return Container(
+      padding: const EdgeInsets.only(top: 25, left: 16, right: 16, bottom: 12),
+      color: Color.fromARGB(255, 107, 139, 255),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -29,7 +31,7 @@ class CustomHeader extends StatelessWidget {
                 style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+                  color: Colors.white,
                 ),
               ),
               const SizedBox(height: 4),
@@ -37,37 +39,46 @@ class CustomHeader extends StatelessWidget {
                 today,
                 style: const TextStyle(
                   fontSize: 14,
-                  color: Colors.black54,
+                  color: Colors.white70,
                 ),
               ),
             ],
           ),
 
-          // Ikon lonceng dengan badge
+          // Notifikasi
           Stack(
-            alignment: Alignment.topRight,
+            clipBehavior: Clip.none,
             children: [
-              IconButton(
-                icon: const Icon(Icons.notifications, size: 28, color: Colors.black87),
-                onPressed: () {
-                  // Arahkan ke halaman notifikasi
+              GestureDetector(
+                onTap: () {
                   Navigator.pushNamed(context, '/notifications');
                 },
+                child: Container(
+                  width: 44,
+                  height: 44,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white24, // background lingkaran
+                  ),
+                  child: const Icon(
+                    Icons.notifications,
+                    color: Colors.white,
+                    size: 26, // ukuran lonceng
+                  ),
+                ),
               ),
               if (notificationCount > 0)
                 Positioned(
-                  right: 8,
-                  top: 6,
+                  right: -2,
+                  top: -2,
                   child: Container(
                     padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       color: Colors.red,
                       shape: BoxShape.circle,
                     ),
-                    constraints: const BoxConstraints(
-                      minWidth: 20,
-                      minHeight: 20,
-                    ),
+                    constraints:
+                        const BoxConstraints(minWidth: 20, minHeight: 20),
                     child: Center(
                       child: Text(
                         '$notificationCount',
@@ -86,4 +97,7 @@ class CustomHeader extends StatelessWidget {
       ),
     );
   }
+
+  @override
+  Size get preferredSize => const Size.fromHeight(68);
 }

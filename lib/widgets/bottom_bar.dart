@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:smartflow/screens/settings/settings_screen.dart';
 import '../../screens/dashboard/dashboard_screen.dart';
 import '../../screens/history/history_screen.dart';
-import '../../screens/billing/billing_screen.dart';
 
 class CustomBottomNav extends StatefulWidget {
   const CustomBottomNav({super.key});
@@ -16,7 +16,7 @@ class _CustomBottomNavState extends State<CustomBottomNav> {
   final List<Widget> _screens = const [
   HistoryScreen(),     // index 0 (kiri)
   DashboardScreen(),   // index 1 (TENGAH - FAB)
-  BillingScreen(),     // index 2 (kanan)
+    SettingsScreen()
 ];
 
 
@@ -59,10 +59,13 @@ class _CustomBottomNavState extends State<CustomBottomNav> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildNavItem(Icons.history_outlined, Icons.history, "Riwayat", 0),
+              _buildNavItem(
+                  Icons.history_outlined, Icons.history, "History", 0),
               const SizedBox(width: 48), // Spacer untuk FAB
-              _buildNavItem(Icons.receipt_long_outlined, Icons.receipt_long, "Tagihan", 2),
+              _buildNavItem(
+                  Icons.settings_outlined, Icons.settings, "Setting", 2),
             ],
+
           ),
         ),
       ),

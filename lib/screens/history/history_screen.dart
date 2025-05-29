@@ -6,7 +6,7 @@ class HistoryScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(child: Text("Login Page")),
+      body: Center(child: Text("History Screen")),
     );
   }
 }

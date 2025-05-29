@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:fl_chart/fl_chart.dart';
+import '../../widgets/costum_header.dart';
 import 'dart:math';
 
 class DashboardScreen extends StatefulWidget {
@@ -34,7 +35,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
         setState(() {
           _debit = (data['debit'] ?? 0).toDouble();
           _volume = (data['volume'] ?? 0).toDouble();
-          _isPumpOn = (data['pump'] ?? 0) == 1;
+
+          // Deteksi format bool atau int
+          final pumpRaw = data['pump'];
+          if (pumpRaw is int) {
+            _isPumpOn = pumpRaw == 1;
+          } else if (pumpRaw is bool) {
+            _isPumpOn = pumpRaw;
+          } else {
+            _isPumpOn = false;
+          }
         });
       }
     });
@@ -65,7 +75,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
       _isPumpOn = value;
     });
 
-    FirebaseDatabase.instance.ref('monitoring/pump').set(value ? 1 : 0);
+    // Kirim status ke Firebase (gunakan 1 / 0)
+    FirebaseDatabase.instance.ref('monitoring').update({
+      'pump': value ? 1 : 0,
+    }).then((_) {
+      print("Status pompa berhasil dikirim: ${value ? 1 : 0}");
+    }).catchError((error) {
+      print("Gagal mengirim status pompa: $error");
+    });
   }
 
   void _goToBillingPage() {
@@ -76,11 +93,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.blue[50],
-      appBar: AppBar(
-        title: const Text("Dashboard Monitoring"),
-        centerTitle: true,
-        backgroundColor: Colors.blueAccent,
-        foregroundColor: Colors.white,
+      appBar: const CustomHeader(
+        deviceName: 'SmartFlow',
+        notificationCount: 3,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
@@ -92,16 +107,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 Expanded(
                   child: Column(
                     children: [
-                      const Icon(Icons.speed,
-                          size: 32, color: Color.fromARGB(255, 107, 139, 255)),
-                      const SizedBox(height: 4),
-                      const Text("Debit Air",
-                          style: TextStyle(fontWeight: FontWeight.w600)),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: const [
+                          Icon(Icons.speed,
+                              size: 28,
+                              color: Color.fromARGB(255, 107, 139, 255)),
+                          SizedBox(width: 6),
+                          Text(
+                            "Debit Air",
+                            style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 16,
+                                color: Color.fromARGB(255, 107, 139, 255)),
+                          ),
+                        ],
+                      ),
                       const SizedBox(height: 12),
                       _buildSensorCard(
                         value: _debit,
                         unit: "L/min",
-                        cardColor: const Color.fromARGB(255, 107, 139, 255),
+                        cardColor: Color.fromARGB(255, 107, 139, 255),
                       ),
                     ],
                   ),
@@ -110,24 +136,38 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 Expanded(
                   child: Column(
                     children: [
-                      const Icon(Icons.water,
-                          size: 32, color: Color.fromARGB(255, 107, 139, 255)),
-                      const SizedBox(height: 4),
-                      const Text("Volume Air",
-                          style: TextStyle(fontWeight: FontWeight.w600)),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: const [
+                          Icon(Icons.water,
+                              size: 28,
+                              color: Color.fromARGB(255, 107, 139, 255)),
+                          SizedBox(width: 6),
+                          Text(
+                            "Volume Air",
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 16,
+                              color: Color.fromARGB(255, 107, 139, 255),
+                            ),
+                          ),
+                        ],
+                      ),
                       const SizedBox(height: 12),
                       _buildSensorCard(
                         value: _volume,
                         unit: "Liter",
-                        cardColor: const Color.fromARGB(255, 107, 139, 255),
+                        cardColor: Color.fromARGB(255, 107, 139, 255),
                       ),
                     ],
                   ),
                 ),
               ],
             ),
+
             const SizedBox(height: 24),
 
+            // Kontrol Pompa + Tombol Tagihan
             Padding(
               padding: const EdgeInsets.only(bottom: 16.0),
               child: Card(
@@ -151,14 +191,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   const Color.fromARGB(255, 107, 139, 255),
                             ),
                             const SizedBox(width: 8),
-                            Text(
+                            const Text(
                               "Control Pompa",
                               style: TextStyle(
                                 fontWeight: FontWeight.w600,
                                 color: Color.fromARGB(255, 107, 139, 255),
                               ),
                             ),
-
                           ],
                         ),
                       ),
@@ -168,18 +207,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             const Icon(Icons.receipt_long, color: Colors.white),
                         label: const Text("Tagihan"),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Color.fromARGB(255, 107, 139, 255),
+                          backgroundColor:
+                              const Color.fromARGB(255, 107, 139, 255),
                           foregroundColor: Colors.white,
                         ),
                       ),
-
                     ],
                   ),
                 ),
               ),
             ),
 
-            // Tombol Filter
+            // Tombol Filter Range
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -189,8 +228,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ],
             ),
             const SizedBox(height: 16),
-
-            // Tombol Toggle Pompa & Tagihan
 
             // Grafik
             SizedBox(
@@ -209,7 +246,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
-                              color: Colors.black87)),
+                              color: Color.fromARGB(255, 107, 139, 255))),
                       const SizedBox(height: 12),
                       Expanded(
                         child: LineChart(
@@ -334,8 +371,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         padding: const EdgeInsets.all(16.0),
         child: Center(
           child: Container(
-            width: 100,
-            height: 100,
+            width: 120,
+            height: 120,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: cardColor,
@@ -348,7 +385,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   Text(
                     value.toStringAsFixed(1),
                     style: const TextStyle(
-                      fontSize: 28,
+                      fontSize: 18,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
                     ),
@@ -356,7 +393,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   Text(
                     unit,
                     style: const TextStyle(
-                      fontSize: 14,
+                      fontSize: 12,
                       color: Colors.white,
                     ),
                   ),
