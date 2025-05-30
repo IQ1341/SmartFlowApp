@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../widgets/costum_header.dart';
 import 'dart:math';
 
@@ -12,7 +14,11 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  final DatabaseReference _ref = FirebaseDatabase.instance.ref('monitoring');
+  DatabaseReference get _ref {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    return FirebaseDatabase.instance.ref('monitoring/$uid');
+  }
+
 
   double _debit = 0.0;
   double _volume = 0.0;
@@ -36,7 +42,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
           _debit = (data['debit'] ?? 0).toDouble();
           _volume = (data['volume'] ?? 0).toDouble();
 
-          // Deteksi format bool atau int
           final pumpRaw = data['pump'];
           if (pumpRaw is int) {
             _isPumpOn = pumpRaw == 1;
@@ -46,8 +51,59 @@ class _DashboardScreenState extends State<DashboardScreen> {
             _isPumpOn = false;
           }
         });
+
+        generateMonthlyBillIfNeeded();
       }
     });
+  }
+
+  Future<void> generateMonthlyBillIfNeeded() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final uid = user.uid;
+    final email = user.email ?? '';
+    final now = DateTime.now();
+    final monthName = "${_getMonthName(now.month)} ${now.year}";
+    final rate = 5; // tarif per liter
+    final tagihan = (_volume * rate).toInt();
+
+    final docId = "$uid-$monthName";
+    final docRef = FirebaseFirestore.instance.collection('tagihan').doc(docId);
+    final docSnap = await docRef.get();
+
+    if (!docSnap.exists) {
+      await docRef.set({
+        'bulan': monthName,
+        'email': email,
+        'pemakaian': _volume,
+        'status': 'Belum Lunas',
+        'tagihan': tagihan,
+        'uid': uid,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+      print("✅ Tagihan bulan $monthName berhasil dibuat");
+    } else {
+      print("ℹ️ Tagihan bulan $monthName sudah ada, tidak dibuat ulang.");
+    }
+  }
+
+  String _getMonthName(int month) {
+    const months = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December'
+    ];
+    return months[month - 1];
   }
 
   void _loadDummyChartData() {
@@ -75,14 +131,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       _isPumpOn = value;
     });
 
-    // Kirim status ke Firebase (gunakan 1 / 0)
-    FirebaseDatabase.instance.ref('monitoring').update({
+    _ref.update({
       'pump': value ? 1 : 0,
-    }).then((_) {
-      print("Status pompa berhasil dikirim: ${value ? 1 : 0}");
-    }).catchError((error) {
-      print("Gagal mengirim status pompa: $error");
-    });
+});
   }
 
   void _goToBillingPage() {
@@ -101,7 +152,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            // Kartu Sensor
+            // Sensor Cards
             Row(
               children: [
                 Expanded(
@@ -164,10 +215,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               ],
             ),
-
             const SizedBox(height: 24),
 
-            // Kontrol Pompa + Tombol Tagihan
+            // Pompa dan Tombol Tagihan
             Padding(
               padding: const EdgeInsets.only(bottom: 16.0),
               child: Card(
@@ -218,7 +268,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ),
 
-            // Tombol Filter Range
+            // Tombol Range Filter
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -229,7 +279,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Grafik
+            // Grafik Debit Air
             SizedBox(
               height: 280,
               child: Card(

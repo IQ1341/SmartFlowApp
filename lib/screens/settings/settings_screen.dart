@@ -11,21 +11,33 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  final DatabaseReference _dbRef =
-      FirebaseDatabase.instance.ref('kalibrasi'); // Path kalibrasi
+  final DatabaseReference _dbKalibrasi =
+      FirebaseDatabase.instance.ref('kalibrasi');
+  final DatabaseReference _dbTarif = FirebaseDatabase.instance.ref('tarif');
   double? _calibrationValue;
+  int? _tarifValue;
 
   @override
   void initState() {
     super.initState();
     _fetchCalibration();
+    _fetchTarif();
   }
 
   Future<void> _fetchCalibration() async {
-    final snapshot = await _dbRef.get();
+    final snapshot = await _dbKalibrasi.get();
     if (snapshot.exists) {
       setState(() {
         _calibrationValue = double.tryParse(snapshot.value.toString());
+      });
+    }
+  }
+
+  Future<void> _fetchTarif() async {
+    final snapshot = await _dbTarif.get();
+    if (snapshot.exists) {
+      setState(() {
+        _tarifValue = int.tryParse(snapshot.value.toString());
       });
     }
   }
@@ -40,15 +52,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (context) => AlertDialog(
         title: const Text(
           "Edit Nilai Kalibrasi",
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF6B8BFF),
-          ),
+          style:
+              TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF6B8BFF)),
         ),
         backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -67,10 +75,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text(
-              "Batal",
-              style: TextStyle(color: Colors.grey),
-            ),
+            child: const Text("Batal", style: TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -80,10 +85,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _showMessage("Input tidak valid!", isError: true);
                 return;
               }
-              setState(() {
-                _calibrationValue = value;
-              });
-              await _dbRef.set(value);
+              setState(() => _calibrationValue = value);
+              await _dbKalibrasi.set(value);
               Navigator.pop(context);
               _showMessage("Kalibrasi berhasil disimpan!", isError: false);
             },
@@ -91,8 +94,67 @@ class _SettingsScreenState extends State<SettingsScreen> {
               backgroundColor: const Color(0xFF6B8BFF),
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text("Simpan"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showTarifDialog() async {
+    final controller = TextEditingController(
+      text: _tarifValue?.toString() ?? '',
+    );
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text(
+          "Edit Tarif Air (Rp/liter)",
+          style:
+              TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF6B8BFF)),
+        ),
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            TextField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: "Masukkan tarif air (misal: 5)",
+                border: OutlineInputBorder(),
               ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Batal", style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final value = int.tryParse(controller.text);
+              if (value == null) {
+                Navigator.pop(context);
+                _showMessage("Input tidak valid!", isError: true);
+                return;
+              }
+              setState(() => _tarifValue = value);
+              await _dbTarif.set(value);
+              Navigator.pop(context);
+              _showMessage("Tarif berhasil disimpan!", isError: false);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF6B8BFF),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
             ),
             child: const Text("Simpan"),
           ),
@@ -113,9 +175,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         contentPadding: const EdgeInsets.all(24),
         titlePadding: const EdgeInsets.only(top: 24),
         title: Column(
@@ -172,12 +232,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
         padding: const EdgeInsets.all(24.0),
         child: Column(
           children: [
+            // Kartu Kalibrasi
             Card(
               color: Colors.white,
               elevation: 3,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
+                  borderRadius: BorderRadius.circular(12)),
               child: ListTile(
                 contentPadding: const EdgeInsets.all(16),
                 title: const Text(
@@ -202,17 +262,57 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     backgroundColor: const Color(0xFF6B8BFF),
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
+                        borderRadius: BorderRadius.circular(8)),
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 10,
-                    ),
+                        horizontal: 16, vertical: 10),
                   ),
                 ),
               ),
             ),
+
+            const SizedBox(height: 16),
+
+            // Kartu Tarif Air
+            Card(
+              color: Colors.white,
+              elevation: 3,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+              child: ListTile(
+                contentPadding: const EdgeInsets.all(16),
+                title: const Text(
+                  "Tarif Air",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: Color(0xFF6B8BFF),
+                  ),
+                ),
+                subtitle: Text(
+                  _tarifValue != null
+                      ? "Rp${_tarifValue.toString()} / liter"
+                      : "Belum ada data",
+                  style: const TextStyle(fontSize: 14),
+                ),
+                trailing: ElevatedButton.icon(
+                  onPressed: _showTarifDialog,
+                  icon: const Icon(Icons.edit),
+                  label: const Text("Edit"),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF6B8BFF),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 10),
+                  ),
+                ),
+              ),
+            ),
+
             const SizedBox(height: 32),
+
+            // Tombol Logout
             ElevatedButton.icon(
               onPressed: _logout,
               icon: const Icon(Icons.logout),
@@ -222,8 +322,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 foregroundColor: Colors.white,
                 minimumSize: const Size.fromHeight(50),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
+                    borderRadius: BorderRadius.circular(10)),
               ),
             )
           ],

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -22,11 +23,33 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
-      );
-      Navigator.pushReplacementNamed(context, '/home');
+      UserCredential userCredential = await FirebaseAuth.instance
+          .signInWithEmailAndPassword(
+              email: _emailController.text.trim(),
+              password: _passwordController.text.trim());
+
+      User? user = userCredential.user;
+
+      if (user != null) {
+        final userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+
+        if (userDoc.exists) {
+          final role = userDoc['role'];
+
+          if (role == 'admin') {
+            Navigator.pushReplacementNamed(context, '/adminDashboard');
+          } else {
+            Navigator.pushReplacementNamed(context, '/home');
+          }
+        } else {
+          setState(() {
+            _errorMessage = 'Data pengguna tidak ditemukan.';
+          });
+        }
+      }
     } on FirebaseAuthException catch (e) {
       setState(() {
         _errorMessage = e.message;
@@ -58,7 +81,8 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.water_drop_rounded, size: 80, color: Colors.white),
+                const Icon(Icons.water_drop_rounded,
+                    size: 80, color: Colors.white),
                 const SizedBox(height: 16),
                 const Text(
                   "Login Monitoring Air",
@@ -69,8 +93,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 32),
-
-                // Login Card
                 Card(
                   color: Colors.white.withOpacity(0.9),
                   shape: RoundedRectangleBorder(
@@ -111,7 +133,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             onPressed: _login,
                             style: ElevatedButton.styleFrom(
                               backgroundColor:
-                                  Color.fromARGB(255, 107, 139, 255),
+                                  const Color.fromARGB(255, 107, 139, 255),
                               minimumSize: const Size.fromHeight(50),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
