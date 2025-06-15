@@ -13,13 +13,14 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   final DatabaseReference _dbKalibrasi =
       FirebaseDatabase.instance.ref('kalibrasi');
-  final DatabaseReference _dbTarif = FirebaseDatabase.instance.ref('tarif');
   double? _calibrationValue;
   int? _tarifValue;
+  String? uid;
 
   @override
   void initState() {
     super.initState();
+    uid = FirebaseAuth.instance.currentUser?.uid;
     _fetchCalibration();
     _fetchTarif();
   }
@@ -34,7 +35,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _fetchTarif() async {
-    final snapshot = await _dbTarif.get();
+    if (uid == null) return;
+    final snapshot =
+        await FirebaseDatabase.instance.ref('tarif/$uid').get();
     if (snapshot.exists) {
       setState(() {
         _tarifValue = int.tryParse(snapshot.value.toString());
@@ -140,13 +143,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ElevatedButton(
             onPressed: () async {
               final value = int.tryParse(controller.text);
-              if (value == null) {
+              if (value == null || uid == null) {
                 Navigator.pop(context);
                 _showMessage("Input tidak valid!", isError: true);
                 return;
               }
               setState(() => _tarifValue = value);
-              await _dbTarif.set(value);
+              await FirebaseDatabase.instance.ref('tarif/$uid').set(value);
               Navigator.pop(context);
               _showMessage("Tarif berhasil disimpan!", isError: false);
             },
@@ -232,7 +235,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         padding: const EdgeInsets.all(24.0),
         child: Column(
           children: [
-            // Kartu Kalibrasi
+            // Kalibrasi
             Card(
               color: Colors.white,
               elevation: 3,
@@ -272,7 +275,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
             const SizedBox(height: 16),
 
-            // Kartu Tarif Air
+            // Tarif
             Card(
               color: Colors.white,
               elevation: 3,
@@ -290,7 +293,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 subtitle: Text(
                   _tarifValue != null
-                      ? "Rp${_tarifValue.toString()} / liter"
+                      ? "Rp$_tarifValue / liter"
                       : "Belum ada data",
                   style: const TextStyle(fontSize: 14),
                 ),
@@ -312,7 +315,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
             const SizedBox(height: 32),
 
-            // Tombol Logout
+            // Logout
             ElevatedButton.icon(
               onPressed: _logout,
               icon: const Icon(Icons.logout),

@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -17,11 +18,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
   DateTime? _endDate;
   List<String> _selectedDocIds = [];
 
+  final user = FirebaseAuth.instance.currentUser;
+
   Future<void> _selectDate({required bool isStart}) async {
-    final DateTime now = DateTime.now();
-    final DateTime initialDate =
-        isStart ? (_startDate ?? now) : (_endDate ?? now);
-    final DateTime? picked = await showDatePicker(
+    final now = DateTime.now();
+    final initialDate = isStart ? (_startDate ?? now) : (_endDate ?? now);
+    final picked = await showDatePicker(
       context: context,
       initialDate: initialDate,
       firstDate: DateTime(now.year - 1),
@@ -38,8 +40,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
   }
 
-  Stream<QuerySnapshot> _getFilteredHistory() {
-    final collection = FirebaseFirestore.instance.collection('history');
+  Stream<QuerySnapshot<Map<String, dynamic>>> _getFilteredHistory() {
+    final uid = user?.uid;
+    if (uid == null) return const Stream.empty();
+
+    final collection =
+        FirebaseFirestore.instance.collection('history').doc(uid).collection('data');
 
     if (_startDate != null && _endDate != null) {
       return collection
@@ -53,7 +59,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     return collection.orderBy('timestamp', descending: true).snapshots();
   }
 
-  Future<void> _downloadSelected(List<QueryDocumentSnapshot> docs) async {
+  Future<void> _downloadSelected(List<QueryDocumentSnapshot<Map<String, dynamic>>> docs) async {
     final pdf = pw.Document();
 
     pdf.addPage(
@@ -66,12 +72,20 @@ class _HistoryScreenState extends State<HistoryScreen> {
             pw.Table.fromTextArray(
               headers: ["Tanggal", "Debit (L/min)", "Volume (L)"],
               data: docs.map((doc) {
-                final data = doc.data() as Map<String, dynamic>;
-                final timestamp = data['timestamp'] as Timestamp?;
-                final dateStr = timestamp != null
-                    ? DateFormat('dd MMM yyyy, HH:mm')
-                        .format(timestamp.toDate())
+                final data = doc.data();
+                final rawTimestamp = data['timestamp'];
+                DateTime? dateTime;
+
+                if (rawTimestamp is Timestamp) {
+                  dateTime = rawTimestamp.toDate();
+                } else if (rawTimestamp is String) {
+                  dateTime = DateTime.tryParse(rawTimestamp);
+                }
+
+                final dateStr = dateTime != null
+                    ? DateFormat('dd MMM yyyy, HH:mm').format(dateTime)
                     : '-';
+
                 return [
                   dateStr,
                   "${data['debit']?.toStringAsFixed(1) ?? '-'}",
@@ -120,7 +134,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       backgroundColor: Colors.blue[50],
       appBar: const CustomHeader(
         deviceName: "SmartFlow",
-        notificationCount: 8,
+        notificationCount: 0,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -160,14 +174,19 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       return;
                     }
 
-                    final docs = await FirebaseFirestore.instance
+                    final uid = user?.uid;
+                    if (uid == null) return;
+
+                    final snapshot = await FirebaseFirestore.instance
                         .collection('history')
+                        .doc(uid)
+                        .collection('data')
                         .where(FieldPath.documentId, whereIn: _selectedDocIds)
                         .get();
-                    _downloadSelected(docs.docs);
+
+                    await _downloadSelected(snapshot.docs);
                   },
-                  icon: const Icon(Icons.download,
-                      color: Color.fromARGB(255, 255, 255, 255)),
+                  icon: const Icon(Icons.download),
                   label: const Text("Download"),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF6B8BFF),
@@ -186,7 +205,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
             // Tabel data
             Expanded(
-              child: StreamBuilder<QuerySnapshot>(
+              child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                 stream: _getFilteredHistory(),
                 builder: (context, snapshot) {
                   if (!snapshot.hasData) {
@@ -214,23 +233,33 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                   SizedBox(width: 140, child: Text('Tanggal'))),
                           DataColumn(
                               label:
-                                  SizedBox(width: 50, child: Text('Debit '))),
+                                  SizedBox(width: 50, child: Text('Debit'))),
                           DataColumn(
                               label:
                                   SizedBox(width: 50, child: Text('Volume'))),
                         ],
                         rows: docs.map((doc) {
-                          final data = doc.data() as Map<String, dynamic>;
+                          final data = doc.data();
                           final id = doc.id;
-                          final timestamp = data['timestamp'] as Timestamp?;
-                          final dateStr = timestamp != null
+
+                          final rawTimestamp = data['timestamp'];
+                          DateTime? dateTime;
+
+                          if (rawTimestamp is Timestamp) {
+                            dateTime = rawTimestamp.toDate();
+                          } else if (rawTimestamp is String) {
+                            dateTime = DateTime.tryParse(rawTimestamp);
+                          }
+
+                          final dateStr = dateTime != null
                               ? DateFormat('dd MMM yyyy, HH:mm')
-                                  .format(timestamp.toDate())
+                                  .format(dateTime)
                               : '-';
+
                           final debit =
-                              data['debit']?.toStringAsFixed(1) ?? '-';
+                              "${data['debit']?.toStringAsFixed(1) ?? '-'}";
                           final volume =
-                              data['volume']?.toStringAsFixed(1) ?? '-';
+                              "${data['volume']?.toStringAsFixed(1) ?? '-'}";
 
                           final selected = _selectedDocIds.contains(id);
 
@@ -248,7 +277,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             cells: [
                               DataCell(
                                   SizedBox(width: 140, child: Text(dateStr))),
-                              DataCell(SizedBox(width: 50, child: Text(debit))),
+                              DataCell(
+                                  SizedBox(width: 50, child: Text(debit))),
                               DataCell(
                                   SizedBox(width: 50, child: Text(volume))),
                             ],

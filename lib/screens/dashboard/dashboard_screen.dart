@@ -4,7 +4,6 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../widgets/costum_header.dart';
-import 'dart:math';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -19,19 +18,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return FirebaseDatabase.instance.ref('monitoring/$uid');
   }
 
-
   double _debit = 0.0;
   double _volume = 0.0;
   bool _isPumpOn = false;
   String _selectedRange = 'day';
-
-  List<double> _dummyData = [];
+  List<FlSpot> _chartData = [];
 
   @override
   void initState() {
     super.initState();
     _listenToRealtimeData();
-    _loadDummyChartData();
+    _loadChartDataFromFirestore();
   }
 
   void _listenToRealtimeData() {
@@ -43,21 +40,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
           _volume = (data['volume'] ?? 0).toDouble();
 
           final pumpRaw = data['pump'];
-          if (pumpRaw is int) {
-            _isPumpOn = pumpRaw == 1;
-          } else if (pumpRaw is bool) {
+          if (pumpRaw is bool) {
             _isPumpOn = pumpRaw;
+          } else if (pumpRaw is int) {
+            _isPumpOn = pumpRaw == 1;
           } else {
             _isPumpOn = false;
           }
         });
 
-        generateMonthlyBillIfNeeded();
+        // Kirim volume saat ini ke fungsi tagihan
+        generateMonthlyBillIfNeeded(_volume);
       }
     });
   }
 
-  Future<void> generateMonthlyBillIfNeeded() async {
+  Future<void> generateMonthlyBillIfNeeded(double currentVolume) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
@@ -65,27 +63,48 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final email = user.email ?? '';
     final now = DateTime.now();
     final monthName = "${_getMonthName(now.month)} ${now.year}";
-    final rate = 5; // tarif per liter
-    final tagihan = (_volume * rate).toInt();
-
     final docId = "$uid-$monthName";
-    final docRef = FirebaseFirestore.instance.collection('tagihan').doc(docId);
-    final docSnap = await docRef.get();
 
-    if (!docSnap.exists) {
-      await docRef.set({
-        'bulan': monthName,
-        'email': email,
-        'pemakaian': _volume,
-        'status': 'Belum Lunas',
-        'tagihan': tagihan,
-        'uid': uid,
-        'timestamp': FieldValue.serverTimestamp(),
-      });
-      print("✅ Tagihan bulan $monthName berhasil dibuat");
-    } else {
+    final tagihanRef =
+        FirebaseFirestore.instance.collection('tagihan').doc(docId);
+    final tagihanSnap = await tagihanRef.get();
+
+    if (tagihanSnap.exists) {
       print("ℹ️ Tagihan bulan $monthName sudah ada, tidak dibuat ulang.");
+      return;
     }
+
+    // Ambil tarif dari Realtime Database
+    final tarifRef = FirebaseDatabase.instance.ref("tarif/$uid");
+    final tarifSnap = await tarifRef.get();
+    if (!tarifSnap.exists) {
+      print("❌ Tarif belum diatur untuk user $uid");
+      return;
+    }
+    final rate = int.tryParse(tarifSnap.value.toString()) ?? 0;
+
+    // Ambil volume bulan lalu dari Firestore
+    final lastVolRef =
+        FirebaseFirestore.instance.collection('last_volume').doc(uid);
+    final lastVolSnap = await lastVolRef.get();
+    final lastVolume = (lastVolSnap.data()?['volume'] ?? 0).toDouble();
+
+    // Hitung pemakaian dan tagihan
+    final pemakaianBulanIni = currentVolume - lastVolume;
+    final tagihan = (pemakaianBulanIni * rate).toInt();
+
+    await tagihanRef.set({
+      'bulan': monthName,
+      'email': email,
+      'pemakaian': pemakaianBulanIni,
+      'status': 'Belum Lunas',
+      'tagihan': tagihan,
+      'uid': uid,
+      'timestamp': FieldValue.serverTimestamp(),
+    });
+
+    await lastVolRef.set({'volume': currentVolume});
+    print("✅ Tagihan bulan $monthName berhasil dibuat");
   }
 
   String _getMonthName(int month) {
@@ -106,35 +125,83 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return months[month - 1];
   }
 
-  void _loadDummyChartData() {
+Future<void> _loadChartDataFromFirestore() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    final now = DateTime.now();
+    late DateTime startDate;
+    late DateTime endDate;
+
+    if (_selectedRange == 'day') {
+      startDate = DateTime(now.year, now.month, now.day);
+      endDate = startDate.add(Duration(days: 1));
+    } else if (_selectedRange == 'week') {
+      startDate = now.subtract(Duration(days: 6));
+      endDate = now.add(Duration(days: 1));
+    } else {
+      startDate = now.subtract(Duration(days: 29));
+      endDate = now.add(Duration(days: 1));
+    }
+
+    final querySnapshot = await FirebaseFirestore.instance
+        .collection('history')
+        .doc(uid)
+        .collection('data')
+        .where('timestamp',
+            isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
+        .where('timestamp', isLessThan: Timestamp.fromDate(endDate))
+        .orderBy('timestamp')
+        .get();
+
+    final List<FlSpot> spots = [];
+
+    for (var doc in querySnapshot.docs) {
+      final data = doc.data();
+      final timestampRaw = data['timestamp'];
+      final debit = (data['debit'] ?? 0).toDouble();
+
+      try {
+        final timestamp = (timestampRaw as Timestamp).toDate();
+        double x;
+        if (_selectedRange == 'day') {
+          x = timestamp.hour.toDouble();
+        } else if (_selectedRange == 'week') {
+          x = timestamp.weekday.toDouble(); // 1 = Monday
+        } else {
+          x = timestamp.day.toDouble();
+        }
+
+        spots.add(FlSpot(x, debit));
+      } catch (e) {
+        continue;
+      }
+    }
+
     setState(() {
-      _dummyData = List.generate(
-        _selectedRange == 'day'
-            ? 24
-            : _selectedRange == 'week'
-                ? 7
-                : 30,
-        (_) => 5 + Random().nextDouble() * 10,
-      );
+      _chartData = spots;
     });
   }
 
-  void _onRangeChanged(String range) {
+
+void _onRangeChanged(String range) {
     setState(() {
       _selectedRange = range;
-      _loadDummyChartData();
     });
-  }
+    _loadChartDataFromFirestore();
+}
 
-  void _togglePump(bool value) {
+
+void _togglePump(bool value) {
     setState(() {
       _isPumpOn = value;
     });
 
     _ref.update({
-      'pump': value ? 1 : 0,
-});
+      'pump': value, // langsung boolean
+    });
   }
+
 
   void _goToBillingPage() {
     Navigator.pushNamed(context, '/billing');
@@ -314,7 +381,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               leftTitles: AxisTitles(
                                 sideTitles: SideTitles(
                                   showTitles: true,
-                                  interval: 2,
+                                  interval: 20,
                                   reservedSize: 32,
                                   getTitlesWidget: (value, meta) => Text(
                                     value.toInt().toString(),
@@ -350,12 +417,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             ),
                             lineBarsData: [
                               LineChartBarData(
-                                spots: _dummyData
-                                    .asMap()
-                                    .entries
-                                    .map((e) =>
-                                        FlSpot(e.key.toDouble(), e.value))
-                                    .toList(),
+                                spots: _chartData,
                                 isCurved: true,
                                 color: const Color.fromARGB(255, 107, 139, 255),
                                 belowBarData: BarAreaData(
@@ -375,6 +437,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 dotData: FlDotData(show: false),
                               ),
                             ],
+
                           ),
                         ),
                       ),
