@@ -213,7 +213,7 @@ void _togglePump(bool value) {
       backgroundColor: Colors.blue[50],
       appBar: const CustomHeader(
         deviceName: 'SmartFlow',
-        notificationCount: 3,
+        // notificationCount: 3,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),

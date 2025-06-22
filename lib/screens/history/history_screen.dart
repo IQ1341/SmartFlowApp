@@ -134,7 +134,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       backgroundColor: Colors.blue[50],
       appBar: const CustomHeader(
         deviceName: "SmartFlow",
-        notificationCount: 0,
+        // notificationCount: 0,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),

@@ -229,7 +229,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       backgroundColor: Colors.blue[50],
       appBar: const CustomHeader(
         deviceName: "SmartFlow",
-        notificationCount: 8,
+        // notificationCount: 8,
       ),
       body: Padding(
         padding: const EdgeInsets.all(24.0),
