@@ -12,7 +12,7 @@ class BillingScreen extends StatefulWidget {
 
 class _BillingScreenState extends State<BillingScreen> {
   String selectedMonth =
-      DateFormat('MMMM yyyy', 'id_ID').format(DateTime.now());
+      DateFormat('MMMM yyyy', 'en_US').format(DateTime.now());
   final user = FirebaseAuth.instance.currentUser;
 
   @override
@@ -45,9 +45,9 @@ class _BillingScreenState extends State<BillingScreen> {
                   (doc.data() as Map<String, dynamic>)['bulan'] as String)
               .toSet()
               .toList()
-            ..sort((a, b) => DateFormat('MMMM yyyy', 'id_ID')
+            ..sort((a, b) => DateFormat('MMMM yyyy', 'en_US')
                 .parse(a)
-                .compareTo(DateFormat('MMMM yyyy', 'id_ID').parse(b)));
+                .compareTo(DateFormat('MMMM yyyy', 'en_US').parse(b)));
 
           // Pastikan selectedMonth valid
           if (!uniqueMonths.contains(selectedMonth)) {
@@ -114,9 +114,15 @@ class _BillingScreenState extends State<BillingScreen> {
                 child: DropdownButtonFormField<String>(
                   value: selectedMonth,
                   items: uniqueMonths.map((month) {
+                    // Convert ke Indonesia untuk ditampilkan jika ingin
+                    DateTime parsedMonth =
+                        DateFormat('MMMM yyyy', 'en_US').parse(month);
+                    String displayMonth =
+                        DateFormat('MMMM yyyy', 'id_ID').format(parsedMonth);
+
                     return DropdownMenuItem<String>(
                       value: month,
-                      child: Text(month),
+                      child: Text(displayMonth),
                     );
                   }).toList(),
                   onChanged: (value) {
@@ -145,6 +151,12 @@ class _BillingScreenState extends State<BillingScreen> {
                     final data =
                         tagihanList[index].data() as Map<String, dynamic>;
                     final isPaid = data['status'] == 'Lunas';
+
+                    // Convert bulan ke Indonesia untuk tampilan
+                    DateTime parsedMonth =
+                        DateFormat('MMMM yyyy', 'en_US').parse(data['bulan']);
+                    String displayMonth =
+                        DateFormat('MMMM yyyy', 'id_ID').format(parsedMonth);
 
                     return Container(
                       margin: const EdgeInsets.only(bottom: 12),
@@ -184,7 +196,7 @@ class _BillingScreenState extends State<BillingScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  data['bulan'],
+                                  displayMonth,
                                   style: const TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.bold),
@@ -217,7 +229,7 @@ class _BillingScreenState extends State<BillingScreen> {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
                                         content: Text(
-                                            "Unduh tagihan ${data['bulan']}")),
+                                            "Unduh tagihan $displayMonth")),
                                   );
                                 },
                                 color: const Color(0xFF6B8BFF),
